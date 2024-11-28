@@ -543,7 +543,7 @@ export function AggregatorContainer({ tokenList }) {
 			...route,
 			isFailed: gasData?.[route.name]?.isFailed || false,
 			route,
-			gasUsd: gasUsd === 0 && route.name !== 'CowSwap' && !route.isGasless ? 'Unknown' : gasUsd,
+			gasUsd: gasUsd === 0 && !['CowSwap', '1inch'].includes(route.name) && !route.isGasless ? 'Unknown' : gasUsd,
 			amountUsd,
 			amount,
 			netOut,
