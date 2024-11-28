@@ -543,7 +543,7 @@ export function AggregatorContainer({ tokenList }) {
 			...route,
 			isFailed: gasData?.[route.name]?.isFailed || false,
 			route,
-			gasUsd: gasUsd === 0 && route.name !== 'CowSwap' && !route.isGasless ? 'Unknown' : gasUsd,
+			gasUsd: gasUsd === 0 && !['CowSwap', '1inch'].includes(route.name) && !route.isGasless ? 'Unknown' : gasUsd,
 			amountUsd,
 			amount,
 			netOut,
@@ -832,6 +832,10 @@ export function AggregatorContainer({ tokenList }) {
 				setTxModalOpen(true);
 				txUrl = `${explorerUrl}/tx/${data.hash}`;
 				setTxUrl(txUrl);
+
+				if (data.wait && variables.adapter === '1inch') {
+					setTxUrl('');
+				}
 			} else {
 				setTxModalOpen(true);
 				txUrl = `https://explorer.cow.fi/orders/${data.id}`;
@@ -978,8 +982,15 @@ export function AggregatorContainer({ tokenList }) {
 	const isAmountSynced = debouncedAmount === formatAmount(amount) && formatAmount(amountOut) === debouncedAmountOut;
 	const isUnknownPrice = !fromTokenPrice || !toTokenPrice;
 	const isPriceImpactNotKnown = !selectedRoutesPriceImpact && selectedRoutesPriceImpact !== 0;
+	const is1inchFusionSwap = selectedRoute ? selectedRoute.gasUsd === 0 : false;
 
 	const warnings = [
+		aggregator === '1inch' && is1inchFusionSwap ? (
+			<Alert status="warning" borderRadius="0.375rem" py="8px" key="cow1">
+				<AlertIcon />
+				1inch Fusion sources all market liquidity to offer best rates for gas-free, MEV-resistant swaps, while ensuring top-tier AML compliance.
+			</Alert>
+		) : null,
 		aggregator === 'CowSwap' ? (
 			<>
 				{finalSelectedFromToken.value === ethers.constants.AddressZero && Number(slippage) < 2 ? (
