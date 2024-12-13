@@ -1,40 +1,63 @@
-import { AUTH_HEADER, AVAILABLE_CHAINS_FOR_FUSION, CHAIN_TO_ID, SPENDERS } from './constants';
-import { altReferralAddress, chainsMap } from '~/components/Aggregator/constants';
-import { domain, SigningScheme, signOrder } from '@gnosis.pm/gp-v2-contracts';
-import { ethers } from 'ethers';
-import { omit } from '~/components/Aggregator/adapters/1inch/utils';
+import { AVAILABLE_CHAINS_FOR_FUSION, CHAIN_TO_ID, SPENDERS } from './constants';
 import { FusionSDK } from '@1inch/fusion-sdk';
 import { formatUnits, parseUnits } from 'ethers/lib/utils';
 
-// const FUSION_QUOTE_ENDPOINT = 'https://api-defillama.1inch.io/v2.0/fusion/quoter/v2.0';
+// const FUSION_QUOTE_ENDPOINT = 'https://api-defillama.1inch.io/v2.0/fusion';
 const FUSION_SDK_ENDPOINT = 'http://localhost:8888/fusion';
-const FUSION_QUOTE_ENDPOINT = 'http://localhost:8888/fusion/quoter/v2.0';
+const SOURCE = 'f012a792';
 
 export function isFusionSupported(chainId: number): boolean {
 	return AVAILABLE_CHAINS_FOR_FUSION.has(chainId);
 }
 
-export async function getFusionQuoteResponse(chain: string, tokenFrom: string, tokenTo: string, amount: string, extra, enableEstimate: boolean) {
+export async function getFusionQuoteResponse(params: {
+	chain: string,
+	tokenFrom: string,
+	tokenTo: string,
+	amount: string,
+	address: string,
+}) {
+	const { chain, tokenFrom, tokenTo, amount, address } = params;
 	const sdk = new FusionSDK({
 		url: FUSION_SDK_ENDPOINT,
-		network: CHAIN_TO_ID[chain],
+		network: CHAIN_TO_ID[chain]
 	});
 
-	const params = {
-		walletAddress: extra.userAddress,
+	return await sdk.getQuote({
 		fromTokenAddress: tokenFrom,
 		toTokenAddress: tokenTo,
 		amount,
-		enableEstimate,
-		slippage: extra.slippage, // ???
-		referrer: altReferralAddress, // ???
-	};
+		walletAddress: address,
+		source: SOURCE,
+	});
+}
 
-	return await sdk.getQuote(params);
+export async function fusionSwap(chain, quote, signer, signTypedDataAsync) {
+	const sdk = new FusionSDK({
+		url: FUSION_SDK_ENDPOINT,
+		network: CHAIN_TO_ID[chain],
+		blockchainProvider: {
+			signTypedData: (_, typedData) => signTypedDataAsync({
+				domain: typedData.domain,
+				types: typedData.types,
+				primaryType: typedData.primaryType,
+				value: typedData.message
+			}),
+			ethCall: signer.call.bind(signer)
+		}
+	});
+
+	return await sdk.placeOrder({
+		fromTokenAddress: quote.params.fromTokenAddress.val,
+		toTokenAddress: quote.params.toTokenAddress.val,
+		walletAddress: quote.params.walletAddress.val,
+		amount: quote.params.amount,
+		source: SOURCE,
+	});
 }
 
 export function parseFusionQuote(chain: string, quote, extra) {
-	const { presets, recommendedPreset, toTokenAmount, quoteId } = quote;
+	const { presets, recommendedPreset, toTokenAmount } = quote;
 	const { auctionStartAmount, auctionEndAmount } = presets[recommendedPreset];
 	const dstTokenDecimals = extra.toToken.decimals;
 
@@ -50,106 +73,6 @@ export function parseFusionQuote(chain: string, quote, extra) {
 		estimatedGas: 0,
 		tokenApprovalAddress: SPENDERS[chain],
 		rawQuote: null,
-		extra: {
-			preset: presets[recommendedPreset],
-			quoteId,
-		},
 		logo: 'https://icons.llamao.fi/icons/protocols/1inch-network?w=48&q=75'
 	};
-}
-
-export async function fusionSwap(quote, signer, chain, tokens, fromAmount) {
-	const receiverAddress = await signer.getAddress();
-
-	const sdk = new FusionSDK({
-		url: FUSION_SDK_ENDPOINT,
-		network: CHAIN_TO_ID[chain],
-	});
-
-	const params = {
-		fromTokenAddress: tokens.fromToken,
-		toTokenAddress: tokens.toToken,
-		amount: fromAmount,
-		walletAddress: receiverAddress,
-	}
-
-	const preparedOrder = await sdk.createOrder(params);
-	const info = await sdk.submitOrder(preparedOrder.order, preparedOrder.quoteId);
-debugger;
-
-	const { typedData, orderHash, extension } = await buildFusionSwapQuote(quote, signer, chain, tokens, fromAmount);
-
-
-	console.log('@@@', typedData, orderHash, extension);
-
-	const order = {
-		...typedData.message,
-		extension,
-	}
-
-	// ???
-	const rawSignature = await signOrder(
-		domain(chainsMap[chain], '0x9008D19f58AAbD9eD0D60971565AA8510560ab41'),
-		order,
-		signer,
-		SigningScheme.EIP712
-	);
-
-	// ???
-	const signature = ethers.utils.joinSignature(rawSignature.data);
-
-	const a = {
-		signature,
-		data: order,
-		chainId: chainsMap[chain],
-		orderHash,
-	}
-
-
-	const b = submitFusionSwapOrder(chain, order, signature, quote.quoteId);
-
-}
-
-async function buildFusionSwapQuote(quote, signer, chain, tokens, fromAmount) {
-	const receiverAddress = await signer.getAddress();
-	const sourceToken = tokens.fromToken;
-	const destinationToken = tokens.toToken;
-
-	return fetch(
-		`${FUSION_QUOTE_ENDPOINT}/${CHAIN_TO_ID[chain]}/quote/build
-			?preset=${quote.recommended_preset}
-			&walletAddress=${receiverAddress}
-			&fromTokenAddress=${sourceToken.address}
-			&toTokenAddress=${destinationToken.address}
-			&amount=${fromAmount}`,
-		{
-			headers: {
-				...AUTH_HEADER,
-				'Content-Type': 'application/json',
-			},
-			method: 'POST',
-			body: JSON.stringify(quote)
-		}
-	).then((r) => r.json());
-}
-
-async function submitFusionSwapOrder(chain, order, signature, quoteId) {
-	const body = {
-		order: omit(['extension'], order),
-		signature,
-		quoteId,
-		extension: order.extension,
-	};
-
-	return fetch(
-		`${FUSION_QUOTE_ENDPOINT}/${CHAIN_TO_ID[chain]}/order/submit`,
-		{
-			headers: {
-				...AUTH_HEADER,
-				'Content-Type': 'application/json',
-			},
-			method: 'POST',
-			body: JSON.stringify(body)
-		}
-	).then((r) => r.json());
 }
