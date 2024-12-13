@@ -16,7 +16,7 @@ export function approvalAddress(chain: string) {
 }
 
 export async function getQuote(chain: string, from: string, to: string, amount: string, extra) {
-	const quote = await getFusionOrClassicQuote(chain, from, to, amount, extra, false);
+	const quote = await getFusionOrClassicQuote(chain, from, to, amount, extra);
 
 	return typeof quote === "object" && "recommendedPreset" in quote
 		? parseFusionQuote(chain, quote, extra)
@@ -24,22 +24,23 @@ export async function getQuote(chain: string, from: string, to: string, amount: 
 }
 
 export async function swap(params) {
-	const { signer, chain, rawQuote, tokens, fromAmount, slippage } = params;
-	const extra = {
-		userAddress: await signer.getAddress(),
-		slippage,
-	};
+	const { signer, chain, rawQuote, tokens, fromAmount, slippage, signTypedDataAsync } = params;
+	const userAddress = await signer.getAddress();
+	const extra = { userAddress, slippage }
 
 	const quote = isFusionSupported(CHAIN_TO_ID[chain])
-		? await getFusionOrClassicQuote(chain, tokens.fromToken.address, tokens.toToken.address, fromAmount, extra, true)
+		? await getFusionOrClassicQuote(chain, tokens.fromToken.address, tokens.toToken.address, fromAmount, extra)
 		: await getClassicQuote(chain, tokens.fromToken.address, tokens.toToken.address, fromAmount, extra);
 
-	return typeof quote === "object" && "recommendedPreset" in quote
-		? await fusionSwap(quote, signer, chain, tokens, fromAmount)
+	const a = typeof quote === "object" && "recommendedPreset" in quote
+		? await fusionSwap(chain, quote, signer, signTypedDataAsync)
 		: await classicSwap(rawQuote, signer, chain);
+
+	console.log('@@@ a', a);
+	debugger;
 }
 
-async function getFusionOrClassicQuote (chain: string, from: string, to: string, amount: string, extra, enableEstimate) {
+async function getFusionOrClassicQuote (chain: string, from: string, to: string, amount: string, extra) {
 	// ethereum = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
 	// amount should include decimals
 	const tokenFrom = from === ethers.constants.AddressZero ? NATIVE_TOKEN : from;
@@ -47,7 +48,7 @@ async function getFusionOrClassicQuote (chain: string, from: string, to: string,
 
 	if (isFusionSupported(CHAIN_TO_ID[chain])) {
 		try {
-			return await getFusionQuoteResponse(chain, tokenFrom, tokenTo, amount, extra, enableEstimate);
+			return await getFusionQuoteResponse({ chain, tokenFrom, tokenTo, amount });
 		} catch {
 			return await getClassicQuote(chain, tokenFrom, tokenTo, amount, extra);
 		}
