@@ -12,10 +12,10 @@
   resolved "https://registry.yarnpkg.com/@1inch/byte-utils/-/byte-utils-2.3.0.tgz#08342ba6fd2559af550140b96f6c3320b218d9b5"
   integrity sha512-SKRlhemGFKc+15uTgSzsEs0T4WTpVv7lwcWdMTtUdf7tXDVCz+Dvr36pLk4UJxeKW/HqHCQXv9w1rF+yCgG4Tw==
 
-"@1inch/fusion-sdk@2":
-  version "2.1.6"
-  resolved "https://registry.yarnpkg.com/@1inch/fusion-sdk/-/fusion-sdk-2.1.6.tgz#b8059ec3a23652818d4b2a74f2815a749cb8d146"
-  integrity sha512-X1m2PLH6BYfazsrWTdOu7GkGwEemCDNsFX7lWL0WyrU4kkS9qq/ZE/h5lNuGYuwytnWYqiLbHX1H8BJxjz+rJA==
+"@1inch/fusion-sdk@2.1.7":
+  version "2.1.7"
+  resolved "https://registry.yarnpkg.com/@1inch/fusion-sdk/-/fusion-sdk-2.1.7.tgz#008507a0fb0e5fe43ebfacec7251cc65f2dbea44"
+  integrity sha512-UxIEYnELK2dK4oPpIQRnOVyiVPfT8YrVGgBjAkKHhModPE265oSU3v7bU7MxrBL1O1nUUJzBP1RDnxvyja26ww==
   dependencies:
     "@1inch/byte-utils" "2.3.0"
     "@1inch/limit-order-sdk" "^4.9.3-rc.1"

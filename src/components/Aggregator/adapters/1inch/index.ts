@@ -24,20 +24,15 @@ export async function getQuote(chain: string, from: string, to: string, amount: 
 }
 
 export async function swap(params) {
-	const { signer, chain, rawQuote, tokens, fromAmount, slippage, signTypedDataAsync } = params;
-	const userAddress = await signer.getAddress();
-	const extra = { userAddress, slippage };
+	const { signer, chain, rawQuote, signTypedDataAsync } = params;
 
-	const quote = isFusionSupported(CHAIN_TO_ID[chain])
-		? await getFusionOrClassicQuote(chain, tokens.fromToken.address, tokens.toToken.address, fromAmount, extra)
-		: await getClassicQuote(chain, tokens.fromToken.address, tokens.toToken.address, fromAmount, extra);
-
-	const a = typeof quote === "object" && "recommendedPreset" in quote
-		? await fusionSwap(chain, quote, signer, signTypedDataAsync)
+	const data = typeof rawQuote === "object" && "recommendedPreset" in rawQuote
+		? await fusionSwap(chain, rawQuote, signer, signTypedDataAsync)
 		: await classicSwap(rawQuote, signer, chain);
 
-	console.log('@@@ a', a);
-	debugger;
+	return typeof rawQuote === "object" && "recommendedPreset" in rawQuote
+		? null
+		: data;
 }
 
 async function getFusionOrClassicQuote (chain: string, from: string, to: string, amount: string, extra) {
@@ -49,7 +44,11 @@ async function getFusionOrClassicQuote (chain: string, from: string, to: string,
 
 	if (isFusionSupported(CHAIN_TO_ID[chain])) {
 		try {
-			return await getFusionQuoteResponse({ chain, tokenFrom, tokenTo, amount, address });
+			const quote = await getFusionQuoteResponse({ chain, tokenFrom, tokenTo, amount, address });
+			if (quote.silippage > +extra.slippage) {
+				throw new Error('slippage does not match slippage');
+			}
+			return quote;
 		} catch {
 			return await getClassicQuote(chain, tokenFrom, tokenTo, amount, extra);
 		}
@@ -64,6 +63,16 @@ export const getTx = ({ rawQuote }) => {
 	if (rawQuote === null) {
 		return {};
 	}
+
+	if ("recommendedPreset" in rawQuote) {
+		return {
+			from: rawQuote.params.fromTokenAddress,
+			to: rawQuote.params.toTokenAddress,
+			// data: rawQuote.tx.data, // ???
+			// value: rawQuote.tx.value // ???
+		};
+	}
+
 	return {
 		from: rawQuote.tx.from,
 		to: rawQuote.tx.to,

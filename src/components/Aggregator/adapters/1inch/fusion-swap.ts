@@ -72,7 +72,7 @@ export function parseFusionQuote(chain: string, quote, extra) {
 		amountReturned: parseUnits(amountReturned, dstTokenDecimals),
 		estimatedGas: 0,
 		tokenApprovalAddress: SPENDERS[chain],
-		rawQuote: null,
+		rawQuote: quote,
 		logo: 'https://icons.llamao.fi/icons/protocols/1inch-network?w=48&q=75'
 	};
 }
