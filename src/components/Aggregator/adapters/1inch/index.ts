@@ -2,7 +2,13 @@
 
 import { CHAIN_TO_ID, NATIVE_TOKEN, SPENDERS } from './constants';
 import { classicSwap, getClassicQuote, parseClassicQuote } from './classic-swap';
-import { fusionSwap, getFusionQuoteResponse, isFusionSupported, parseFusionQuote } from './fusion-swap';
+import {
+	fusionSwap,
+	getFusionQuoteResponse,
+	getOrderStatus,
+	isFusionSupported,
+	parseFusionQuote
+} from './fusion-swap';
 import { ethers } from 'ethers';
 
 export const name = '1inch';
@@ -31,7 +37,11 @@ export async function swap(params) {
 		: await classicSwap(rawQuote, signer, chain);
 
 	return typeof rawQuote === "object" && "recommendedPreset" in rawQuote
-		? null
+		? {
+			...data,
+			hash: data.orderHash,
+			checkFusionOrderStatus: getOrderStatus(chain, data.orderHash)
+		}
 		: data;
 }
 

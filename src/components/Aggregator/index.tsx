@@ -832,6 +832,31 @@ export function AggregatorContainer({ tokenList }) {
 				setTxModalOpen(true);
 				txUrl = `${explorerUrl}/tx/${data.hash}`;
 				setTxUrl(txUrl);
+
+				if (data.checkFusionOrderStatus) {
+					data.checkFusionOrderStatus(() => {
+						forceRefreshTokenBalance();
+
+						toast(formatSuccessToast(variables));
+
+						sendSwapEvent({
+							chain: selectedChain.value,
+							user: address,
+							from: variables.from,
+							to: variables.to,
+							aggregator: variables.adapter,
+							isError,
+							quote: variables.rawQuote,
+							txUrl,
+							amount: String(variables.amountIn),
+							amountUsd: +fromTokenPrice * +variables.amountIn || 0,
+							errorData: {},
+							slippage,
+							routePlace: String(variables?.index),
+							route: variables.route
+						});
+					});
+				}
 			} else {
 				setTxModalOpen(true);
 				txUrl = `https://explorer.cow.fi/orders/${data.id}`;

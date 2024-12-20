@@ -1,5 +1,5 @@
 import { AVAILABLE_CHAINS_FOR_FUSION, CHAIN_TO_ID, SPENDERS } from './constants';
-import { FusionSDK } from '@1inch/fusion-sdk';
+import { FusionSDK, OrderStatus } from '@1inch/fusion-sdk';
 import { formatUnits, parseUnits } from 'ethers/lib/utils';
 
 // const FUSION_QUOTE_ENDPOINT = 'https://api-defillama.1inch.io/v2.0/fusion';
@@ -55,6 +55,33 @@ export async function fusionSwap(chain, quote, signer, signTypedDataAsync) {
 		source: SOURCE,
 	});
 }
+
+export const getOrderStatus = (chain, hash) => async (onSuccess) => {
+	const sdk = new FusionSDK({
+		url: FUSION_SDK_ENDPOINT,
+		network: CHAIN_TO_ID[chain]
+	});
+
+	while (true) {
+		try {
+			const data = await sdk.getOrderStatus(hash);
+
+			if (data.status === OrderStatus.Filled) {
+				status = OrderStatus.Filled;
+				onSuccess();
+				break
+			}
+
+			if (data.status === OrderStatus.Expired) {
+				onSuccess();
+				break
+			}
+		} catch (e) {
+			console.log(e)
+		}
+	}
+};
+
 
 export function parseFusionQuote(chain: string, quote, extra) {
 	const { presets, recommendedPreset, toTokenAmount } = quote;
