@@ -834,6 +834,8 @@ export function AggregatorContainer({ tokenList }) {
 				setTxUrl(txUrl);
 
 				if (data.checkFusionOrderStatus) {
+					setTxUrl('');
+
 					data.checkFusionOrderStatus(() => {
 						forceRefreshTokenBalance();
 
@@ -1003,8 +1005,15 @@ export function AggregatorContainer({ tokenList }) {
 	const isAmountSynced = debouncedAmount === formatAmount(amount) && formatAmount(amountOut) === debouncedAmountOut;
 	const isUnknownPrice = !fromTokenPrice || !toTokenPrice;
 	const isPriceImpactNotKnown = !selectedRoutesPriceImpact && selectedRoutesPriceImpact !== 0;
+	const is1inchFusionSwap = selectedRoute ? selectedRoute.gasUsd === 0 : false;
 
 	const warnings = [
+		aggregator === '1inch' && is1inchFusionSwap ? (
+			<Alert status="warning" borderRadius="0.375rem" py="8px" key="cow1">
+				<AlertIcon />
+				1inch Fusion sources all market liquidity to offer best rates for gas-free, MEV-resistant swaps, while ensuring top-tier AML compliance.
+			</Alert>
+		) : null,
 		aggregator === 'CowSwap' ? (
 			<>
 				{finalSelectedFromToken.value === ethers.constants.AddressZero && Number(slippage) < 2 ? (

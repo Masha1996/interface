@@ -96,7 +96,7 @@ export function parseFusionQuote(chain: string, quote, extra) {
 	const amountReturned = end > receivedAmount ? end : receivedAmount;
 
 	return {
-		amountReturned: parseUnits(amountReturned, dstTokenDecimals),
+		amountReturned: parseUnits(amountReturned, dstTokenDecimals).toString(),
 		estimatedGas: 0,
 		tokenApprovalAddress: SPENDERS[chain],
 		rawQuote: quote,
